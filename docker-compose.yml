@@ -1,0 +1,99 @@
+version: '3.7'
+
+networks:
+    services:
+      ipam:
+        config:
+          - subnet: 10.0.0.0/8
+
+services:
+    websocket-server:
+        build: ./websocket-server
+        environment:
+            - PORT=${WEBSOCKET_PORT}
+        restart: always
+        ports:
+            - "${WEBSOCKET_PORT}:${WEBSOCKET_PORT}"
+        expose:
+            - "${WEBSOCKET_PORT}"
+        networks:
+            services:
+                ipv4_address: 10.0.0.2
+    dashboard:
+        stdin_open: true
+        tty: true
+        build: ./dashboard
+        environment:
+            - REACT_APP_WEBSOCKET_PORT=${WEBSOCKET_PORT}
+        ports:
+            - "3000:3000"
+        expose:
+            - "3000"
+        networks:
+            services:
+                ipv4_address: 10.0.0.3
+    edge-gateway:
+        build: ./edge-gateway
+        init: true
+        environment:
+            - API_GATEWAY_URL=${API_GATEWAY_URL}
+            - APP_ACCESS_KEY=${APP_ACCESS_KEY}
+            - APP_ACCESS_SECRET=${APP_ACCESS_SECRET}
+            - PPE_BROKER_URL=${PPE_BROKER_URL}
+            - EDGE_GATEWAY_PRODUCT_KEY=${EDGE_GATEWAY_PRODUCT_KEY}
+            - ORG_ID=${ORG_ID}
+            - SUBDEVICE_MODEL_ID=${SUBDEVICE_MODEL_ID}
+            - PORT=${EDGE_GATEWAY_PORT}
+        restart: always
+        ports:
+            - "${EDGE_GATEWAY_PORT}:${EDGE_GATEWAY_PORT}"
+        networks:
+            services:
+                ipv4_address: 10.0.0.4
+    edge-subdevice:
+        build: ./edge-subdevice
+        environment:
+            - EDGE_GATEWAY_IP=edge-gateway
+            - EDGE_GATEWAY_PORT=${EDGE_GATEWAY_PORT}
+        depends_on:
+            - edge-gateway
+        restart: always
+        networks:
+            services:
+                ipv4_address: 10.0.0.5
+    data-subscriber-alert:
+        build: ./data-subscriber-alert
+        environment:
+            - APP_ACCESS_KEY=${APP_ACCESS_KEY}
+            - APP_ACCESS_SECRET=${APP_ACCESS_SECRET}
+            - SUBSCRIPTION_HOST=${SUBSCRIPTION_HOST}
+            - SUBSCRIPTION_PORT=${SUBSCRIPTION_PORT}
+            - SUBDEVICE_MODEL_ID=${SUBDEVICE_MODEL_ID}
+            - SUBSCRIPTION_ID=${SUBSCRIPTION_ID_ALERT}
+            - WEBSOCKET_URL=websocket-server
+            - WEBSOCKET_PORT=${WEBSOCKET_PORT}
+            - PORT=${DATE_SUBSCRIBER_PORT_ALERT}
+        restart: always
+        ports:
+            - "${DATE_SUBSCRIBER_PORT_ALERT}:${DATE_SUBSCRIBER_PORT_ALERT}"
+        networks:
+            services:
+                ipv4_address: 10.0.0.6
+    data-subscriber-timeseries:
+        build: ./data-subscriber-timeseries
+        environment:
+            - APP_ACCESS_KEY=${APP_ACCESS_KEY}
+            - APP_ACCESS_SECRET=${APP_ACCESS_SECRET}
+            - SUBSCRIPTION_HOST=${SUBSCRIPTION_HOST}
+            - SUBSCRIPTION_PORT=${SUBSCRIPTION_PORT}
+            - SUBDEVICE_MODEL_ID=${SUBDEVICE_MODEL_ID}
+            - SUBSCRIPTION_ID=${SUBSCRIPTION_ID_TIMESERIES}
+            - WEBSOCKET_URL=websocket-server
+            - WEBSOCKET_PORT=${WEBSOCKET_PORT}
+            - PORT=${DATE_SUBSCRIBER_PORT_TIMESERIES}
+        restart: always
+        ports:
+            - "${DATE_SUBSCRIBER_PORT_TIMESERIES}:${DATE_SUBSCRIBER_PORT_TIMESERIES}"
+        networks:
+            services:
+                ipv4_address: 10.0.0.7
